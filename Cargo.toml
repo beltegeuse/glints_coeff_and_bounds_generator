@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 half = "1"
+clap = "2"
 byteorder = "*"
 cgmath = { version = "*" }
 image = { version =  "*" }

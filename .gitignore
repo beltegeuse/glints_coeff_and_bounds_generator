@@ -2,4 +2,4 @@
 /data
 *.exr
 *.coeff
-*.bounds
+*.bound

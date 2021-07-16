@@ -1,5 +1,6 @@
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use cgmath::InnerSpace;
+use clap::{value_t, App, Arg};
 use std::{convert::TryInto, fs::File, io::BufWriter, path::Path};
 
 #[rustfmt::skip]
@@ -304,29 +305,27 @@ impl Bitmap<[f32; 16]> {
 }
 
 fn main() {
-    // TODO: Add clap for command line uses
-    // Read image
-    // -- Flakes
-    let filename = "data/flakes.exr";
-    // let filename_coeff = "data/flakes.exr.coeff";
-    // -- Scratchs
-    // let filename = "data/scratch_wave_0.05.exr";
-    // let filename_coeff = "data/scratch_wave_0.05.exr.coeff";
+    let matches = App::new("glint_coeff_bounds")
+        .version("0.1")
+        .arg(
+            Arg::with_name("filename")
+                .help("filename for normal-map or coeff file (depending of the mode)")
+                .required(true)
+                .index(1),
+        )
+        .arg(
+            Arg::with_name("output")
+                .help("output name")
+                .required(true)
+                .index(2),
+        )
+        .get_matches();
+
+    let filename = value_t!(matches, "filename", String).expect("filename is wrong");
+    let output = value_t!(matches, "output", String).expect("output is wrong");
 
     // Load the normal map image
-    let mut image = Bitmap3::read(filename);
-    {
-        dbg!(image
-            .data
-            .iter()
-            .map(|v| v.x)
-            .max_by(|x, y| x.partial_cmp(&y).unwrap()));
-        dbg!(image
-            .data
-            .iter()
-            .map(|v| v.x)
-            .min_by(|x, y| x.partial_cmp(&y).unwrap()));
-    }
+    let mut image = Bitmap3::read(&filename);
     image.normalize(); // Normalize the normals
 
     // Compute coeffs
@@ -396,27 +395,9 @@ fn main() {
             }
         }
 
-        ///////////////////////
-        // Debug code:
-        // This can load original coeff file and save it back to multi channel EXR.
-        // Also compute the ratio between the computed coeffs and the original one
-        // to spot any differences.
-        ////////////////////////
-
-        // println!("Write coeffs (exr)... ");
-        // c0.save_exr("c0.exr");
-        // c1.save_exr("c1.exr");
-        // {
-        //     let (c0ref, c1ref) = Bitmap::<[f32; 16]>::load(filename_coeff, image.size);
-        //     c0ref.save_exr("c0ref.exr");
-        //     c1ref.save_exr("c1ref.exr");
-        //     let c0div = c0ref.div(&c0);
-        //     c0div.save_exr("c0div.exr");
-        // }
-
         // Save coeff in the binary form
         println!("Write coeffs ... ");
-        let file = File::create(Path::new("test.coeff")).unwrap();
+        let file = File::create(Path::new(&format!("{}.coeff", output))).unwrap();
         let mut file = BufWriter::new(file);
         for c in 0..16 {
             c0.save_channel(&mut file, c);
@@ -468,7 +449,7 @@ fn main() {
         }
 
         println!("Write out bounds...");
-        let file = File::create(Path::new("test.bounds")).unwrap();
+        let file = File::create(&format!("{}.bound", output)).unwrap();
         let mut file = BufWriter::new(file);
         for v in &max.data {
             file.write_f32::<LittleEndian>(v.x).unwrap();
