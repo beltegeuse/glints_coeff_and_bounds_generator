@@ -1,5 +1,5 @@
 /target
 /data
 *.exr
-*.coeffs
+*.coeff
 *.bounds

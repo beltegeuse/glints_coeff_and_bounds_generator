@@ -1,6 +1,6 @@
-use std::{convert::TryInto, fs::File, io::BufWriter, path::Path};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use cgmath::InnerSpace;
+use std::{convert::TryInto, fs::File, io::BufWriter, path::Path};
 
 #[rustfmt::skip]
 const AINV: [[f32; 16]; 16] = [
@@ -178,6 +178,7 @@ impl Bitmap3 {
     }
 }
 impl Bitmap<[f32; 16]> {
+    #[allow(dead_code)]
     pub fn div(&self, other: &Self) -> Self {
         let mut res = Self {
             size: self.size,
@@ -191,13 +192,14 @@ impl Bitmap<[f32; 16]> {
                 let o2 = other.pixel((x, y)); // Do (y * size + x)
                 for i in 0..16 {
                     p[i] = o1[i] / o2[i];
-                }                
+                }
             }
         }
 
         res
     }
 
+    #[allow(dead_code)]
     pub fn load(filename: &str, size: (usize, usize)) -> (Self, Self) {
         let f = File::open(Path::new(filename)).unwrap();
         let mut f = std::io::BufReader::new(f);
@@ -211,21 +213,26 @@ impl Bitmap<[f32; 16]> {
             data: vec![[0.0; 16]; size.0 * size.1],
         };
         for j in 0..2 {
-        for i in 0..16 {
-            // Do (x * size + y)
-            for x in 0..size.0 {
-                for y in 0..size.1 {
-                    let p = if j == 0 { res0.pixel_mut((x, y)) } else { res1.pixel_mut((x,y))}; // Do (y * size + x)
-                    let v = f.read_f32::<LittleEndian>().unwrap();
-                    p[i] = v;
+            for i in 0..16 {
+                // Do (x * size + y)
+                for x in 0..size.0 {
+                    for y in 0..size.1 {
+                        let p = if j == 0 {
+                            res0.pixel_mut((x, y))
+                        } else {
+                            res1.pixel_mut((x, y))
+                        }; // Do (y * size + x)
+                        let v = f.read_f32::<LittleEndian>().unwrap();
+                        p[i] = v;
+                    }
                 }
             }
-        }
         }
 
         (res0, res1)
     }
 
+    #[allow(dead_code)]
     pub fn save_exr(&self, filename: &str) {
         // Create a file to write to.  The `Header` determines the properties of the
         // file, like resolution and what channels it has.
@@ -264,6 +271,29 @@ impl Bitmap<[f32; 16]> {
             output_file.write_pixels(&fb).unwrap();
         }
     }
+
+    pub fn save_channel(&self, file: &mut std::io::BufWriter<File>, c: usize) {
+        for d in &self.data {
+            file.write_f32::<LittleEndian>(d[c]).unwrap();
+        }
+    }
+
+    pub fn get_normal(&self, uv: (f32, f32)) -> f32 {
+        let x = uv.0 * self.size.0 as f32;
+        let y = uv.1 * self.size.1 as f32;
+        let x_int = (x.floor() as usize).rem_euclid(self.size.0);
+        let y_int = (y.floor() as usize).rem_euclid(self.size.1);
+
+        let mut v = 0.0;
+        for i in 0..4 {
+            for j in 0..4 {
+                let c = j * 4 + i;
+                let coeff = self.pixel((x_int, y_int))[c];
+                v += coeff * (x - x.floor()).powi(i as i32) * (y - y.floor()).powi(j as i32);
+            }
+        }
+        v
+    }
 }
 
 fn main() {
@@ -273,28 +303,34 @@ fn main() {
     // let filename_coeff = "data/flakes.exr.coeff";
     // -- Scratchs
     let filename = "data/scratch_wave_0.05.exr";
-    let filename_coeff = "data/scratch_wave_0.05.exr.coeff";
+    // let filename_coeff = "data/scratch_wave_0.05.exr.coeff";
 
     let mut image = Bitmap3::read(filename);
-    image.normalize();
-
-    const MAX_ITER: u32 = 2;
-
-    // TODO: Check if the direction need to be normalized (normal)
-    // TODO: Check if we need to transform the normals
+    {
+        dbg!(image
+            .data
+            .iter()
+            .map(|v| v.x)
+            .max_by(|x, y| x.partial_cmp(&y).unwrap()));
+        dbg!(image
+            .data
+            .iter()
+            .map(|v| v.x)
+            .min_by(|x, y| x.partial_cmp(&y).unwrap()));
+    }
+    image.normalize(); // Normalize the normals
 
     // Compute coeffs
+    let mut c0 = Bitmap::<[f32; 16]> {
+        size: image.size,
+        data: vec![[0.0; 16]; image.size.0 * image.size.1],
+    };
+    let mut c1 = Bitmap::<[f32; 16]> {
+        size: image.size,
+        data: vec![[0.0; 16]; image.size.0 * image.size.1],
+    };
     {
         println!("Compute coeffs ... ");
-        // Coefficients
-        let mut c0 = Bitmap::<[f32; 16]> {
-            size: image.size,
-            data: vec![[0.0; 16]; image.size.0 * image.size.1],
-        };
-        let mut c1 = Bitmap::<[f32; 16]> {
-            size: image.size,
-            data: vec![[0.0; 16]; image.size.0 * image.size.1],
-        };
 
         // Helpers
         let f = |x: usize, y: usize| *image.pixel_warp((x, y));
@@ -337,7 +373,7 @@ fn main() {
                 ];
                 *c0.pixel_mut((x1, y1)) = compute_coeff(
                     &v.iter()
-                        .map(|v| v.x)
+                        .map(|v| v.x) //(((v.x * 255.0) as i32) as f32 / 255.0))
                         .collect::<Vec<_>>()
                         .try_into()
                         .unwrap(),
@@ -351,38 +387,35 @@ fn main() {
                 );
             }
         }
-        // Debug
-        println!("Write coeffs (exr)... ");
-        c0.save_exr("c0.exr");
-        c1.save_exr("c1.exr");
-        {
-            let (c0ref, c1ref) = Bitmap::<[f32; 16]>::load(filename_coeff, image.size);
-            c0ref.save_exr("c0ref.exr");
-            c1ref.save_exr("c1ref.exr");
-            let c0div = c0ref.div(&c0);
-            c0div.save_exr("c0div.exr");
-        }
 
+        ///////////////////////
+        // Debug
+        // println!("Write coeffs (exr)... ");
+        // c0.save_exr("c0.exr");
+        // c1.save_exr("c1.exr");
+        // {
+        //     let (c0ref, c1ref) = Bitmap::<[f32; 16]>::load(filename_coeff, image.size);
+        //     c0ref.save_exr("c0ref.exr");
+        //     c1ref.save_exr("c1ref.exr");
+        //     let c0div = c0ref.div(&c0);
+        //     c0div.save_exr("c0div.exr");
+        // }
+
+        // Save coeff in the binary form
         println!("Write coeffs ... ");
-        let file = File::create(Path::new("test.coeffs")).unwrap();
+        let file = File::create(Path::new("test.coeff")).unwrap();
         let mut file = BufWriter::new(file);
-        for y in 0..image.size.0 {
-            for x in 0..image.size.1 {
-                for v in c0.pixel((x, y)) {
-                    file.write_f32::<LittleEndian>(*v).unwrap();
-                }
-            }
+        for c in 0..16 {
+            c0.save_channel(&mut file, c);
         }
-        for y in 0..image.size.0 {
-            for x in 0..image.size.1 {
-                for v in c1.pixel((x, y)) {
-                    file.write_f32::<LittleEndian>(*v).unwrap();
-                }
-            }
+        for c in 0..16 {
+            c1.save_channel(&mut file, c);
         }
     }
 
+    println!("Compute bound files...");
     // Compute bounds
+    const MAX_SEG: u32 = 1 << 2;
     {
         let mut max = Bitmap2 {
             size: image.size,
@@ -392,6 +425,50 @@ fn main() {
             size: image.size,
             data: vec![cgmath::Vector2::new(0.0, 0.0); image.size.0 * image.size.1],
         };
+
+        for i in 0..image.size.0 {
+            for j in 0..image.size.1 {
+                for k in 0..MAX_SEG {
+                    for l in 0..MAX_SEG {
+                        let x1 = ((k as f32) / MAX_SEG as f32 + i as f32) * image.size.0 as f32;
+                        let y1 = ((l as f32) / MAX_SEG as f32 + j as f32) * image.size.1 as f32;
+                        let x2 =
+                            ((k as f32 + 1.0) / MAX_SEG as f32 + i as f32) * image.size.0 as f32;
+                        let y2 =
+                            ((l as f32 + 1.0) / MAX_SEG as f32 + j as f32) * image.size.1 as f32;
+
+                        // Compute min/max for the bounds
+                        for (c, coeffs) in [&c0, &c1].iter().enumerate() {
+                            let v0 = coeffs.get_normal((x1, y1));
+                            let v1 = coeffs.get_normal((x2, y1));
+                            let v2 = coeffs.get_normal((x1, y2));
+                            let v3 = coeffs.get_normal((x2, y2));
+                            let v_max = max.pixel((i, j))[c];
+                            let v_min = min.pixel((i, j))[c];
+
+                            max.pixel_mut((i, j))[c] = v_max.max(v0).max(v1).max(v2).max(v3);
+                            min.pixel_mut((i, j))[c] = v_min.min(v0).min(v1).min(v2).min(v3);
+                        }
+                    }
+                }
+            }
+        }
+
+        println!("Write out bounds...");
+        let file = File::create(Path::new("test.bounds")).unwrap();
+        let mut file = BufWriter::new(file);
+        for v in &max.data {
+            file.write_f32::<LittleEndian>(v.x).unwrap();
+        }
+        for v in &min.data {
+            file.write_f32::<LittleEndian>(v.x).unwrap();
+        }
+        for v in &max.data {
+            file.write_f32::<LittleEndian>(v.y).unwrap();
+        }
+        for v in &min.data {
+            file.write_f32::<LittleEndian>(v.y).unwrap();
+        }
     }
 
     println!("DONE!");
