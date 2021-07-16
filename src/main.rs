@@ -4,25 +4,25 @@ use std::{convert::TryInto, fs::File, io::BufWriter, path::Path};
 
 #[rustfmt::skip]
 const AINV: [[f32; 16]; 16] = [
-    [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,], // 0: OK
-    [0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,], // 1: Ok
-    [-3.0, 3.0, 0.0, 0.0, -2.0, -1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,], // 2: OK
-    [2.0, -2.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,], // 3: OK
-    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,], // 4: OK
-    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0,], // 5
-    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -3.0, 3.0, 0.0, 0.0, -2.0, -1.0, 0.0, 0.0,], // 6
-    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, -2.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0,], // 7
-    [-3.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 0.0, -2.0, 0.0, -1.0, 0.0, 0.0, 0.0, 0.0, 0.0,], // 8: OK
-    [0.0, 0.0, 0.0, 0.0, -3.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 0.0, -2.0, 0.0, -1.0, 0.0,], // 9
-    [9.0, -9.0, -9.0, 9.0, 6.0, 3.0, -6.0, -3.0, 6.0, -6.0, 3.0, -3.0, 4.0, 2.0, 2.0, 1.0,], // 10
-    [-6.0, 6.0, 6.0, -6.0, -3.0, -3.0, 3.0, 3.0, -4.0, 4.0, -2.0, 2.0, -2.0, -2.0, -1.0, -1.0,], // 11
-    [2.0, 0.0, -2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,], // 12: OK
+    [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,], 
+    [0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,], 
+    [-3.0, 3.0, 0.0, 0.0, -2.0, -1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,], 
+    [2.0, -2.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,], 
+    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,], 
+    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0,], 
+    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -3.0, 3.0, 0.0, 0.0, -2.0, -1.0, 0.0, 0.0,], 
+    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, -2.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0,], 
+    [-3.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 0.0, -2.0, 0.0, -1.0, 0.0, 0.0, 0.0, 0.0, 0.0,], 
+    [0.0, 0.0, 0.0, 0.0, -3.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 0.0, -2.0, 0.0, -1.0, 0.0,], 
+    [9.0, -9.0, -9.0, 9.0, 6.0, 3.0, -6.0, -3.0, 6.0, -6.0, 3.0, -3.0, 4.0, 2.0, 2.0, 1.0,],
+    [-6.0, 6.0, 6.0, -6.0, -3.0, -3.0, 3.0, 3.0, -4.0, 4.0, -2.0, 2.0, -2.0, -2.0, -1.0, -1.0,],
+    [2.0, 0.0, -2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,], 
     [0.0, 0.0, 0.0, 0.0, 2.0, 0.0, -2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0,],
     [-6.0, 6.0, 6.0, -6.0, -4.0, -2.0, 4.0, 2.0, -3.0, 3.0, -3.0, 3.0, -2.0, -1.0, -2.0, -1.0,],
     [4.0, -4.0, -4.0, 4.0, 2.0, 2.0, -2.0, -2.0, 2.0, -2.0, 2.0, -2.0, 1.0, 1.0, 1.0, 1.0,],
 ];
 
-// Multiply coeffs
+// Compute coeffs using inverse A matrix
 fn compute_coeff(x: &[f32; 16]) -> [f32; 16] {
     let mut alpha: [f32; 16] = [
         0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
@@ -36,6 +36,7 @@ fn compute_coeff(x: &[f32; 16]) -> [f32; 16] {
     alpha
 }
 
+/// Bitmap representation
 #[derive(Clone)]
 struct Bitmap<T> {
     pub size: (usize, usize),
@@ -45,20 +46,17 @@ impl<T> Bitmap<T> {
     pub fn pixel(&self, p: (usize, usize)) -> &T {
         assert!(p.0 < self.size.0);
         assert!(p.1 < self.size.1);
-        // &self.data[p.1 * self.size.0 + p.0]
+
         &self.data[p.0 * self.size.1 + p.1]
     }
     pub fn pixel_warp(&self, p: (usize, usize)) -> &T {
         let x = p.0.rem_euclid(self.size.0);
         let y = p.1.rem_euclid(self.size.1);
-
-        // &self.data[y * self.size.0 + x]
         &self.data[x * self.size.1 + y]
     }
     pub fn pixel_mut(&mut self, p: (usize, usize)) -> &mut T {
         assert!(p.0 < self.size.0);
         assert!(p.1 < self.size.1);
-        // &mut self.data[p.1 * self.size.0 + p.0]
         &mut self.data[p.0 * self.size.1 + p.1]
     }
 }
@@ -94,21 +92,20 @@ impl Bitmap3 {
             .unwrap()
             .1
             .pixel_type;
+
+        // Depending of the precision, load the frame buffer and convert back to f32
         let data = match pixel_type {
             openexr::PixelType::UINT => panic!("Uint is unsupported"),
             openexr::PixelType::FLOAT => {
                 let mut data = vec![(0.0f32, 0.0f32, 0.0f32); (width * height) as usize];
-                // New scope because `FrameBuffer` mutably borrows `pixel_data`, so we need
-                // it to go out of scope before we can access our `pixel_data` again.
                 {
-                    // Create `FrameBufferMut` that points at our pixel data and describes
-                    // it as RGB data.
                     let mut fb = openexr::FrameBufferMut::new(width, height);
                     fb.insert_channels(&[("R", 0.0), ("G", 0.0), ("B", 0.0)], &mut data);
 
                     // Read pixel data from the file.
                     input_file.read_pixels(&mut fb).unwrap();
                 }
+                // Conversion
                 data.into_iter()
                     .map(|v| cgmath::Vector3::new(v.0, v.1, v.2))
                     .collect()
@@ -122,17 +119,14 @@ impl Bitmap3 {
                     );
                     (width * height) as usize
                 ];
-                // New scope because `FrameBuffer` mutably borrows `pixel_data`, so we need
-                // it to go out of scope before we can access our `pixel_data` again.
                 {
-                    // Create `FrameBufferMut` that points at our pixel data and describes
-                    // it as RGB data.
                     let mut fb = openexr::FrameBufferMut::new(width, height);
                     fb.insert_channels(&[("R", 0.0), ("G", 0.0), ("B", 0.0)], &mut data);
 
                     // Read pixel data from the file.
                     input_file.read_pixels(&mut fb).unwrap();
                 }
+                // Conversion
                 data.into_iter()
                     .map(|v| cgmath::Vector3::new(v.0.to_f32(), v.1.to_f32(), v.2.to_f32()))
                     .collect()
@@ -142,6 +136,7 @@ impl Bitmap3 {
         Bitmap { size, data }
     }
 
+    // Read LDR image ()
     pub fn read_ldr_image(filename: &str) -> Self {
         // The image that we will render
         let image_ldr = image::open(filename)
@@ -153,9 +148,9 @@ impl Bitmap3 {
             for y in 0..size.1 {
                 let p = image_ldr.get_pixel(x as u32, y as u32);
                 data[(y * size.0 + x) as usize] = cgmath::Vector3::new(
-                    f32::from(p[0]) / 255.0,
-                    f32::from(p[1]) / 255.0,
-                    f32::from(p[2]) / 255.0,
+                    (f32::from(p[0]) / 255.0) * 2.0 - 1.0,
+                    (f32::from(p[1]) / 255.0) * 2.0 - 1.0,
+                    (f32::from(p[2]) / 255.0) * 2.0 - 1.0,
                 );
             }
         }
@@ -163,6 +158,7 @@ impl Bitmap3 {
         Bitmap { size, data }
     }
 
+    // Read file (LDF or OpenEXR)
     pub fn read(filename: &str) -> Self {
         let ext = match std::path::Path::new(filename).extension() {
             None => panic!("No file extension provided"),
@@ -177,7 +173,11 @@ impl Bitmap3 {
         }
     }
 }
+
+// Specialization for bitmap containing coeff files
+// These functions are mostly to debug or output intermediate states
 impl Bitmap<[f32; 16]> {
+    // Compute the ratio between two coeff bitmaps
     #[allow(dead_code)]
     pub fn div(&self, other: &Self) -> Self {
         let mut res = Self {
@@ -187,9 +187,9 @@ impl Bitmap<[f32; 16]> {
 
         for x in 0..self.size.0 {
             for y in 0..self.size.1 {
-                let p = res.pixel_mut((x, y)); // Do (y * size + x)
-                let o1 = self.pixel((x, y)); // Do (y * size + x)
-                let o2 = other.pixel((x, y)); // Do (y * size + x)
+                let p = res.pixel_mut((x, y));
+                let o1 = self.pixel((x, y));
+                let o2 = other.pixel((x, y));
                 for i in 0..16 {
                     p[i] = o1[i] / o2[i];
                 }
@@ -199,6 +199,7 @@ impl Bitmap<[f32; 16]> {
         res
     }
 
+    // Load coeff bitmap (Linqi's format)
     #[allow(dead_code)]
     pub fn load(filename: &str, size: (usize, usize)) -> (Self, Self) {
         let f = File::open(Path::new(filename)).unwrap();
@@ -232,6 +233,8 @@ impl Bitmap<[f32; 16]> {
         (res0, res1)
     }
 
+    // Save the coeff in a multi-channel EXR
+    // So it is easy to inspect inside the EXR Viewer (like tev)
     #[allow(dead_code)]
     pub fn save_exr(&self, filename: &str) {
         // Create a file to write to.  The `Header` determines the properties of the
@@ -260,10 +263,12 @@ impl Bitmap<[f32; 16]> {
         )
         .unwrap();
 
+        // Remap data
         let data = (0..16)
             .map(|i| self.data.iter().map(|c| c[i]).collect::<Vec<f32>>())
             .collect::<Vec<_>>();
         {
+            // Insert data and save
             let mut fb = openexr::FrameBuffer::new(self.size.0 as u32, self.size.1 as u32);
             for i in 0..16 {
                 fb.insert_channels(&[&format!("C{}", i)], &data[i]);
@@ -272,12 +277,14 @@ impl Bitmap<[f32; 16]> {
         }
     }
 
+    // Helper function to save a given channel into a file
     pub fn save_channel(&self, file: &mut std::io::BufWriter<File>, c: usize) {
         for d in &self.data {
             file.write_f32::<LittleEndian>(d[c]).unwrap();
         }
     }
 
+    // Compute the bicubic interpolation using the coefficients
     pub fn get_normal(&self, uv: (f32, f32)) -> f32 {
         let x = uv.0 * self.size.0 as f32;
         let y = uv.1 * self.size.1 as f32;
@@ -297,14 +304,16 @@ impl Bitmap<[f32; 16]> {
 }
 
 fn main() {
+    // TODO: Add clap for command line uses
     // Read image
     // -- Flakes
-    // let filename = "data/flakes.exr";
+    let filename = "data/flakes.exr";
     // let filename_coeff = "data/flakes.exr.coeff";
     // -- Scratchs
-    let filename = "data/scratch_wave_0.05.exr";
+    // let filename = "data/scratch_wave_0.05.exr";
     // let filename_coeff = "data/scratch_wave_0.05.exr.coeff";
 
+    // Load the normal map image
     let mut image = Bitmap3::read(filename);
     {
         dbg!(image
@@ -321,6 +330,7 @@ fn main() {
     image.normalize(); // Normalize the normals
 
     // Compute coeffs
+    println!("Compute coeffs ... ");
     let mut c0 = Bitmap::<[f32; 16]> {
         size: image.size,
         data: vec![[0.0; 16]; image.size.0 * image.size.1],
@@ -330,8 +340,6 @@ fn main() {
         data: vec![[0.0; 16]; image.size.0 * image.size.1],
     };
     {
-        println!("Compute coeffs ... ");
-
         // Helpers
         let f = |x: usize, y: usize| *image.pixel_warp((x, y));
         let f_x = |x: usize, y: usize| {
@@ -389,7 +397,12 @@ fn main() {
         }
 
         ///////////////////////
-        // Debug
+        // Debug code:
+        // This can load original coeff file and save it back to multi channel EXR.
+        // Also compute the ratio between the computed coeffs and the original one
+        // to spot any differences.
+        ////////////////////////
+
         // println!("Write coeffs (exr)... ");
         // c0.save_exr("c0.exr");
         // c1.save_exr("c1.exr");
@@ -414,7 +427,7 @@ fn main() {
     }
 
     println!("Compute bound files...");
-    // Compute bounds
+    // Compute bounds: For now for 32 triangles (4*4 tiles)
     const MAX_SEG: u32 = 1 << 2;
     {
         let mut max = Bitmap2 {
